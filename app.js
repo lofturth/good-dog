@@ -13,13 +13,20 @@ function readRecords(key) {
 }
 
 const periods = [
-  { id: "morning", name: "Morning", end: 660 },
-  { id: "midday", name: "Midday break", end: 960 },
-  { id: "evening", name: "Evening", end: 1230 },
-  { id: "late-night", name: "Late night", end: 1440 }
+  { id: "morning", name: "Morning", range: "Midnight–11 AM", end: 660 },
+  { id: "midday", name: "Midday", range: "11 AM–4 PM", end: 960 },
+  { id: "evening", name: "Evening", range: "4 PM–8:30 PM", end: 1230 },
+  { id: "late-night", name: "Late night", range: "8:30 PM–midnight", end: 1440 }
 ];
 const history = document.querySelector("#history");
-let boundaryTimeout;
+let selectedPeriod = periodForDate(new Date());
+const periodButtons = document.querySelectorAll("#period-selector button");
+periodButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    selectedPeriod = periods.find(period => period.id === button.dataset.period);
+    renderNotebook();
+  });
+});
 
 function periodForDate(date) {
   const minutes = date.getHours() * 60 + date.getMinutes();
@@ -30,9 +37,9 @@ function localDay(date) {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-function belongsToCurrentPeriod(entry, now) {
+function belongsToSelectedPeriod(entry, now) {
   const date = new Date(entry.timestamp);
-  return localDay(date) === localDay(now) && periodForDate(date) === periodForDate(now);
+  return localDay(date) === localDay(now) && periodForDate(date) === selectedPeriod;
 }
 
 function renderEntry(entry) {
@@ -55,14 +62,12 @@ function renderEntry(entry) {
 
 function renderNotebook() {
   const now = new Date();
-  const currentPeriod = periodForDate(now);
-  document.body.dataset.period = currentPeriod.id;
-  document.querySelector("#current-period").textContent = currentPeriod.name;
-  // Refresh once at the next local boundary, including midnight. No session clock.
-  clearTimeout(boundaryTimeout);
-  const next = new Date(now);
-  next.setHours(0, currentPeriod.end, 0, 0);
-  boundaryTimeout = setTimeout(renderNotebook, next - now);
+  document.body.dataset.period = selectedPeriod.id;
+  document.querySelector("#current-period").textContent = selectedPeriod.name;
+  document.querySelector("#period-range").textContent = selectedPeriod.range;
+  periodButtons.forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.period === selectedPeriod.id));
+  });
 
   const list = document.querySelector("#notes");
   const historyList = document.querySelector("#history-notes");
@@ -81,7 +86,7 @@ function renderNotebook() {
   entries.sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
   const days = new Map();
   for (const entry of entries) {
-    if (belongsToCurrentPeriod(entry, now)) list.append(renderEntry(entry));
+    if (belongsToSelectedPeriod(entry, now)) list.append(renderEntry(entry));
     const date = new Date(entry.timestamp);
     const dayKey = localDay(date);
     if (!days.has(dayKey)) {
@@ -164,8 +169,10 @@ editor.addEventListener("submit", event => {
   }
   try {
     const notes = readRecords(notesKey);
-    notes.push({ text, timestamp: new Date().toISOString() });
+    const timestamp = new Date();
+    notes.push({ text, timestamp: timestamp.toISOString() });
     localStorage.setItem(notesKey, JSON.stringify(notes));
+    selectedPeriod = periodForDate(timestamp);
   } catch {
     editorMessage.textContent = "Couldn’t save. Your note is still here; your stored data has not been changed.";
     return;

@@ -88,3 +88,8 @@ textarea::placeholder { color: #8d9d93; }
 .period-group article:last-child { border-bottom: 0; margin-bottom: 0; }
 #open-history { margin-right: 24px; }
 #history-message { color: #c4b5a8; font-size: 14px; }
+
+#period-selector { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 28px; }
+#period-selector button { min-width: 0; min-height: 44px; padding: 10px 2px; font-size: 12px; border-radius: 12px; background: var(--tint); color: var(--accent); }
+#period-selector button[aria-pressed="true"] { background: var(--accent); color: #18231f; border-color: var(--accent); }
+#period-range { color: #a6b5ac; font-size: 13px; margin: 6px 0 0; }
