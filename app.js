@@ -12,35 +12,118 @@ function readRecords(key) {
   return records;
 }
 
+const periods = [
+  { id: "morning", name: "Morning", end: 660 },
+  { id: "midday", name: "Midday break", end: 960 },
+  { id: "evening", name: "Evening", end: 1230 },
+  { id: "late-night", name: "Late night", end: 1440 }
+];
+const history = document.querySelector("#history");
+let boundaryTimeout;
+
+function periodForDate(date) {
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  return periods.find(period => minutes < period.end);
+}
+
+function localDay(date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function belongsToCurrentPeriod(entry, now) {
+  const date = new Date(entry.timestamp);
+  return localDay(date) === localDay(now) && periodForDate(date) === periodForDate(now);
+}
+
+function renderEntry(entry) {
+  const article = document.createElement("article");
+  const time = document.createElement("time");
+  const date = new Date(entry.timestamp);
+  if (!Number.isNaN(date.getTime())) {
+    time.dateTime = date.toISOString();
+    time.textContent = date.toLocaleString(undefined, {
+      year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit"
+    });
+  } else {
+    time.textContent = "Timestamp unavailable";
+  }
+  const text = document.createElement("p");
+  text.textContent = entry.text;
+  article.append(time, text);
+  return article;
+}
+
 function renderNotebook() {
+  const now = new Date();
+  const currentPeriod = periodForDate(now);
+  document.body.dataset.period = currentPeriod.id;
+  document.querySelector("#current-period").textContent = currentPeriod.name;
+  // Refresh once at the next local boundary, including midnight. No session clock.
+  clearTimeout(boundaryTimeout);
+  const next = new Date(now);
+  next.setHours(0, currentPeriod.end, 0, 0);
+  boundaryTimeout = setTimeout(renderNotebook, next - now);
+
   const list = document.querySelector("#notes");
+  const historyList = document.querySelector("#history-notes");
   list.replaceChildren();
+  historyList.replaceChildren();
   message.textContent = "";
+  document.querySelector("#history-message").textContent = "";
   let entries = [];
   try {
     entries = readRecords(notesKey).reverse();
   } catch {
-    message.textContent = "Saved notes couldn’t be read. Your notes have not been changed.";
+    const error = "Saved notes couldn’t be read. Your notes have not been changed.";
+    message.textContent = error;
+    document.querySelector("#history-message").textContent = error;
   }
   entries.sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
+  const days = new Map();
   for (const entry of entries) {
-    const article = document.createElement("article");
-    const time = document.createElement("time");
+    if (belongsToCurrentPeriod(entry, now)) list.append(renderEntry(entry));
     const date = new Date(entry.timestamp);
-    if (!Number.isNaN(date.getTime())) {
-      time.dateTime = date.toISOString();
-      time.textContent = date.toLocaleString(undefined, {
-        year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit"
-      });
-    } else {
-      time.textContent = "Timestamp unavailable";
+    const dayKey = localDay(date);
+    if (!days.has(dayKey)) {
+      const section = document.createElement("section");
+      const heading = document.createElement("h2");
+      heading.textContent = Number.isNaN(date.getTime()) ? "Date unavailable" :
+        date.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "short", day: "numeric" });
+      section.append(heading);
+      historyList.append(section);
+      days.set(dayKey, { section, groups: new Map() });
     }
-    const text = document.createElement("p");
-    text.textContent = entry.text;
-    article.append(time, text);
-    list.append(article);
+    const day = days.get(dayKey);
+    const period = periodForDate(date);
+    const key = period?.id ?? "unknown";
+    if (!day.groups.has(key)) {
+      const group = document.createElement("section");
+      group.className = "period-group";
+      group.dataset.period = key;
+      const heading = document.createElement("h3");
+      heading.textContent = period?.name ?? "Period unavailable";
+      group.append(heading);
+      day.section.append(group);
+      day.groups.set(key, group);
+    }
+    day.groups.get(key).append(renderEntry(entry));
   }
 }
+
+document.querySelector("#open-history").addEventListener("click", () => {
+  renderNotebook();
+  notebook.hidden = true;
+  history.hidden = false;
+  window.scrollTo(0, 0);
+  document.querySelector("#history-title").focus();
+});
+document.querySelector("#close-history").addEventListener("click", () => {
+  renderNotebook();
+  history.hidden = true;
+  notebook.hidden = false;
+  document.querySelector("#open-history").focus();
+  window.scrollTo(0, 0);
+});
 
 function sizeEditor() {
   const viewport = window.visualViewport;
@@ -52,6 +135,7 @@ window.visualViewport?.addEventListener("scroll", sizeEditor);
 window.addEventListener("resize", sizeEditor);
 
 recordButton.addEventListener("click", () => {
+  renderNotebook();
   field.value = "";
   editorMessage.textContent = "";
   notebook.hidden = true;
@@ -90,6 +174,10 @@ editor.addEventListener("submit", event => {
   closeEditor();
 });
 
+window.addEventListener("focus", renderNotebook);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) renderNotebook();
+});
 window.addEventListener("storage", renderNotebook);
 window.addEventListener("pageshow", renderNotebook);
 // Explicitly retired legacy observation and session data. Never clear unrelated storage.

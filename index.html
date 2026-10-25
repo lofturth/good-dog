@@ -15,11 +15,20 @@
   </head>
   <body>
     <main id="notebook">
-      <header><h1>Good Dog</h1></header>
+      <header><h1>Good Dog</h1><p id="current-period" class="period-label"></p></header>
       <button id="record" class="primary" type="button">Record</button>
       <p id="message" role="status"></p>
       <div id="notes" aria-label="Recorded notes"></div>
+      <button class="quiet" id="open-history" type="button">History</button>
       <button class="quiet" id="export-json" type="button">Export JSON</button>
+    </main>
+    <main id="history" hidden>
+      <header>
+        <button class="quiet" id="close-history" type="button">← Back to notebook</button>
+        <h1 id="history-title" tabindex="-1">History</h1>
+      </header>
+      <p id="history-message" role="status"></p>
+      <div id="history-notes"></div>
     </main>
     <form id="editor" hidden aria-label="Record a note">
       <label for="note-text">New note</label>

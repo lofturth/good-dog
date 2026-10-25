@@ -1,6 +1,6 @@
 // Bump this version when changing the application shell.
 const cachePrefix = `good-dog:${self.registration.scope}:`;
-const cacheName = `${cachePrefix}v6`;
+const cacheName = `${cachePrefix}v7`;
 const essentialFiles = [
   "./", "./index.html", "./styles.css", "./app.js", "./pwa.js",
   "./manifest.webmanifest", "./icons/paw-180.png",
