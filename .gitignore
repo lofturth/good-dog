@@ -1,0 +1,20 @@
+# macOS and Windows metadata
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Temporary files and editor backups
+*.tmp
+*.swp
+*.swo
+*~
+
+# Local development artifacts
+*.log
+*.pid
+.venv/
+__pycache__/
+.env
+.env.local
+.env.*.local
